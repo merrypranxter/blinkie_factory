@@ -4,7 +4,7 @@
  * constrained to the blinkie/stamp aesthetic.
  *
  * Layer stack (per frame):
- *   1. Background   — solid color or uploaded image (+ FX)
+ *   1. Background   — solid color, image, or animated GIF (+ FX)
  *   2. Pixel art    — hand-drawn per-frame raster
  *   3. Decorations  — uploaded images, draggable
  *   4. Text         — bitmap-font rendering
@@ -29,7 +29,13 @@ const app = {
   currentFrame: 0,
   frames: [], // { pixels: ImageData, texts: [], decorations: [] }
 
-  bg: { type: 'color', color: '#000000', image: null },
+  bg: {
+    type: 'color',      // color | image
+    color: '#000000',
+    image: null,        // static image (HTMLImageElement)
+    frames: [],         // animated GIF frames (canvas[]), empty when static
+    mapping: 'sync'     // sync | stretch | boomerang
+  },
 
   perforation: {
     style: 'none',        // none | circles | squares | dashes | stars
@@ -55,6 +61,8 @@ const app = {
 
 const canvas = document.getElementById('mainCanvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const gridCanvas = document.getElementById('gridCanvas');
+const gctx = gridCanvas.getContext('2d');
 const $ = id => document.getElementById(id);
 
 // Scratch canvas for compositing
@@ -88,8 +96,8 @@ function init() {
   buildPalette();
   for (let i = 0; i < 3; i++) app.frames.push(newFrame());
   app.currentFrame = 0;
-  resizeCanvas();
   setupEvents();
+  fitZoom();
   render();
   rebuildTimeline();
 }
@@ -189,7 +197,7 @@ function applySize() {
     f.pixels = fresh;
   });
 
-  resizeCanvas();
+  fitZoom();
   rebuildTimeline();
   render();
 }
@@ -199,16 +207,30 @@ function resizeCanvas() {
   canvas.height = app.h;
   canvas.style.width = (app.w * app.zoom) + 'px';
   canvas.style.height = (app.h * app.zoom) + 'px';
+  gridCanvas.width = app.w * app.zoom;
+  gridCanvas.height = app.h * app.zoom;
 }
 
 function setZoom(z) {
   app.zoom = Math.max(1, Math.min(32, z));
   $('zoomLabel').textContent = app.zoom + '×';
   resizeCanvas();
+  render();
+}
+
+// Pick a zoom that fits the canvas inside the visible area,
+// so nothing overflows or gets clipped on load / layout change.
+function fitZoom() {
+  const area = document.querySelector('.canvas-area');
+  const zw = Math.floor((area.clientWidth - 64) / app.w);
+  const zh = Math.floor((area.clientHeight - 64) / app.h);
+  app.zoom = Math.max(1, Math.min(16, Math.min(zw || 1, zh || 1)));
+  $('zoomLabel').textContent = app.zoom + '×';
+  resizeCanvas();
 }
 
 // ===================== RENDER PIPELINE =====================
-// opts.exporting = true skips editor-only overlays (grid, onion skin)
+// opts.exporting = true skips editor-only overlays (onion skin)
 function render(opts) {
   opts = opts || {};
   const frame = app.frames[app.currentFrame];
@@ -245,22 +267,42 @@ function render(opts) {
   // 5 — Perforation (border band, then holes punched through everything)
   if (app.perforation.style !== 'none') drawPerforation(ctx);
 
-  // Grid overlay (editor only)
-  if (!opts.exporting && app.showGrid && app.zoom >= 4) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x <= app.w; x++) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, app.h); ctx.stroke();
-    }
-    for (let y = 0; y <= app.h; y++) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(app.w, y); ctx.stroke();
-    }
-    ctx.restore();
-  }
+  drawGrid();
 
   $('frameInfo').textContent = `Frame ${app.currentFrame + 1} of ${app.frames.length}`;
   refreshTimeline();
+}
+
+// Grid lives on a separate overlay canvas at display resolution,
+// so lines land crisply *between* pixel cells (1 CSS px each) and
+// never get baked into the export. mix-blend-mode: difference keeps
+// them visible over any background color.
+function drawGrid() {
+  const gw = gridCanvas.width, gh = gridCanvas.height;
+  gctx.clearRect(0, 0, gw, gh);
+  if (!app.showGrid) return;
+  const z = app.zoom;
+  gctx.fillStyle = 'rgba(255,255,255,0.55)';
+  for (let x = 1; x < app.w; x++) gctx.fillRect(x * z, 0, 1, gh);
+  for (let y = 1; y < app.h; y++) gctx.fillRect(0, y * z, gw, 1);
+}
+
+// Which animated-background frame should show on timeline frame i
+function bgFrameForIndex(i) {
+  const frames = app.bg.frames;
+  const n = frames.length;
+  if (!n) return null;
+  if (app.bg.mapping === 'stretch') {
+    const total = Math.max(1, app.frames.length);
+    return frames[Math.min(n - 1, Math.floor(i / total * n))];
+  }
+  if (app.bg.mapping === 'boomerang') {
+    if (n === 1) return frames[0];
+    const cycle = 2 * n - 2;
+    const k = i % cycle;
+    return frames[k < n ? k : cycle - k];
+  }
+  return frames[i % n]; // sync
 }
 
 // Background + FX chain: css filters → pixelate → noise
@@ -272,10 +314,10 @@ function buildBackground() {
   if (app.bg.type === 'color') {
     x.fillStyle = app.bg.color;
     x.fillRect(0, 0, app.w, app.h);
-  } else if (app.bg.image) {
-    x.drawImage(app.bg.image, 0, 0, app.w, app.h);
   } else {
-    return c; // transparent
+    const src = app.bg.frames.length ? bgFrameForIndex(app.currentFrame) : app.bg.image;
+    if (!src) return c; // transparent
+    x.drawImage(src, 0, 0, app.w, app.h);
   }
 
   // CSS filter pass (blur / brightness / contrast / saturation / hue)
@@ -448,7 +490,11 @@ function hitTest(x, y) {
   return null;
 }
 
-function onPointerDown(clientX, clientY) {
+function onPointerDown(clientX, clientY, shiftKey) {
+  // Drawing while the preview plays is confusing — strokes would land
+  // on whatever frame happens to be active. Pause first.
+  if (app.isPlaying) stopPlayback();
+
   const pos = getPixelPos(clientX, clientY);
   lastPos = pos;
 
@@ -456,7 +502,8 @@ function onPointerDown(clientX, clientY) {
     isDrawing = true;
     drawPixel(pos.x, pos.y);
   } else if (app.tool === 'fill') {
-    floodFill(pos.x, pos.y);
+    if (shiftKey) floodFill(pos.x, pos.y);        // Shift+click: classic flood fill
+    else { fillCell(pos.x, pos.y); render(); }    // default: fill one pixel cell
   } else if (app.tool === 'picker') {
     pickColor(pos.x, pos.y);
   } else if (app.tool === 'text') {
@@ -467,6 +514,18 @@ function onPointerDown(clientX, clientY) {
       dragTarget = { obj: hit.obj, dx: pos.x - hit.obj.x, dy: pos.y - hit.obj.y };
     }
   }
+}
+
+// Fill exactly one pixel cell — the "click a square, it fills" workflow.
+function fillCell(x, y) {
+  if (x < 0 || x >= app.w || y < 0 || y >= app.h) return;
+  const frame = app.frames[app.currentFrame];
+  const idx = (y * app.w + x) * 4;
+  const c = hexToRGBA(app.brushColor);
+  frame.pixels.data[idx]     = c[0];
+  frame.pixels.data[idx + 1] = c[1];
+  frame.pixels.data[idx + 2] = c[2];
+  frame.pixels.data[idx + 3] = c[3];
 }
 
 function onPointerMove(clientX, clientY) {
@@ -627,7 +686,7 @@ function setBrushColor(c) { app.brushColor = c; }
 
 function setupEvents() {
   // Canvas pointer + touch
-  canvas.addEventListener('mousedown', e => onPointerDown(e.clientX, e.clientY));
+  canvas.addEventListener('mousedown', e => onPointerDown(e.clientX, e.clientY, e.shiftKey));
   canvas.addEventListener('mousemove', e => onPointerMove(e.clientX, e.clientY));
   canvas.addEventListener('mouseup', onPointerUp);
   canvas.addEventListener('mouseleave', onPointerUp);
@@ -682,9 +741,8 @@ function setupEvents() {
   });
   $('bgColor').addEventListener('input', e => { app.bg.color = e.target.value; render(); });
   $('bgUploadBox').addEventListener('click', () => $('bgUpload').click());
-  $('bgUpload').addEventListener('change', e => {
-    loadImageFile(e.target.files[0], img => { app.bg.image = img; render(); });
-  });
+  $('bgUpload').addEventListener('change', e => handleBgUpload(e.target.files[0]));
+  $('bgMapping').addEventListener('change', e => { app.bg.mapping = e.target.value; render(); });
 
   // Decorations
   $('decoUploadBox').addEventListener('click', () => $('decoUpload').click());
@@ -764,6 +822,74 @@ function loadImageFile(file, cb) {
   reader.readAsDataURL(file);
 }
 
+// ---------- Background upload (static image or animated GIF) ----------
+function handleBgUpload(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const buf = ev.target.result;
+    const sig = String.fromCharCode(...new Uint8Array(buf.slice(0, 6)));
+    if (sig === 'GIF89a' || sig === 'GIF87a') {
+      try {
+        const gif = GIFReader.parse(buf);
+        if (gif.frames.length > 1) {
+          setAnimatedBackground(gif);
+          return;
+        }
+      } catch (err) {
+        console.warn('GIF parse failed, treating as static image:', err);
+      }
+    }
+    // Static image path
+    const img = new Image();
+    img.onload = () => {
+      app.bg.image = img;
+      app.bg.frames = [];
+      updateBgAnimUI();
+      render();
+    };
+    img.src = URL.createObjectURL(file);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function setAnimatedBackground(gif) {
+  // Convert composited RGBA frames to canvases
+  app.bg.frames = gif.frames.map(f => {
+    const c = makeCanvas(gif.width, gif.height);
+    c.getContext('2d').putImageData(new ImageData(f.rgba, gif.width, gif.height), 0, 0);
+    return c;
+  });
+  app.bg.image = null;
+
+  // If the timeline is still pristine (nothing drawn anywhere), grow it
+  // to match the GIF's frame count and adopt its average frame rate.
+  if (timelineIsEmpty()) {
+    const n = Math.min(60, gif.frames.length);
+    app.frames = Array.from({ length: n }, newFrame);
+    app.currentFrame = 0;
+    const avgDelay = gif.frames.reduce((s, f) => s + f.delay, 0) / gif.frames.length;
+    app.fps = Math.max(1, Math.min(60, Math.round(100 / avgDelay)));
+    $('fpsInput').value = app.fps;
+    rebuildTimeline();
+  }
+
+  updateBgAnimUI(gif.frames.length);
+  render();
+}
+
+function timelineIsEmpty() {
+  return app.frames.every(f =>
+    !f.texts.length && !f.decorations.length &&
+    f.pixels.data.every((v, i) => i % 4 !== 3 || v === 0));
+}
+
+function updateBgAnimUI(n) {
+  const animated = app.bg.frames.length > 1;
+  $('bgAnimField').classList.toggle('hidden', !animated);
+  if (animated) $('bgAnimInfo').textContent = `· ${n || app.bg.frames.length} frames`;
+}
+
 function refreshDecoList() {
   const list = $('decoList');
   list.innerHTML = '';
@@ -812,18 +938,19 @@ function refreshTimeline() {
   // and guarantees nothing goes stale when bg/layers/filters change.
   Array.from(container.children).forEach((div, i) => {
     div.classList.toggle('active', i === app.currentFrame);
-    renderThumb(div.querySelector('canvas'), app.frames[i]);
+    renderThumb(div.querySelector('canvas'), app.frames[i], i);
   });
 }
 
-function renderThumb(c, frame) {
+function renderThumb(c, frame, idx) {
   const tctx = c.getContext('2d');
   tctx.clearRect(0, 0, c.width, c.height);
   if (app.bg.type === 'color') {
     tctx.fillStyle = app.bg.color;
     tctx.fillRect(0, 0, c.width, c.height);
-  } else if (app.bg.image) {
-    tctx.drawImage(app.bg.image, 0, 0, c.width, c.height);
+  } else {
+    const src = app.bg.frames.length ? bgFrameForIndex(idx) : app.bg.image;
+    if (src) tctx.drawImage(src, 0, 0, c.width, c.height);
   }
   scratch.width = c.width; scratch.height = c.height;
   sctx.putImageData(frame.pixels, 0, 0);
