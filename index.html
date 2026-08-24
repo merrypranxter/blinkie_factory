@@ -24,6 +24,15 @@
     <input type="number" id="ch" value="20" min="10" max="600" style="width:60px">
     <button class="btn" id="applySize">Apply</button>
   </div>
+  <div class="divider-v"></div>
+  <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+    Undo
+  </button>
+  <button class="btn" id="redoBtn" title="Redo (Ctrl+Shift+Z / Ctrl+Y)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/></svg>
+    Redo
+  </button>
   <div style="flex:1"></div>
   <button class="btn" id="playBtn">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
@@ -52,10 +61,10 @@
         <div class="tool-btn" data-tool="picker" title="Color Picker">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.2 7.5l-3.7-3.7c-1-1-2.5-1-3.4 0L3.5 13.4c-.5.5-.5 1.2 0 1.7l3.7 3.7c.5.5 1.2.5 1.7 0l9.6-9.6c1-1 1-2.5 0-3.4z"/><path d="M14.5 6.5l3 3"/></svg>
         </div>
-        <div class="tool-btn" data-tool="move" title="Move (drag decorations &amp; text)">
+        <div class="tool-btn" data-tool="move" title="Move / resize layers — drag body to move, drag a corner to resize, arrows to nudge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M19 9l3 3-3 3M9 19l3 3 3-3"/></svg>
         </div>
-        <div class="tool-btn" data-tool="text" title="Text (click canvas to place)">
+        <div class="tool-btn" data-tool="text" title="Text (click canvas to place a text layer)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
         </div>
       </div>
@@ -92,14 +101,39 @@
 
   <div class="rightbar">
     <div class="tabs">
-      <div class="tab active" data-tab="bg">BG</div>
-      <div class="tab" data-tab="deco">Deco</div>
+      <div class="tab active" data-tab="layers">Layers</div>
+      <div class="tab" data-tab="bg">BG</div>
       <div class="tab" data-tab="text">Text</div>
       <div class="tab" data-tab="perf">Edge</div>
       <div class="tab" data-tab="filters">FX</div>
     </div>
 
-    <div id="tab-bg" class="tab-content active">
+    <div id="tab-layers" class="tab-content active">
+      <div class="layer-add-row">
+        <button class="btn" id="addDrawLayerBtn" title="New pixel-drawing layer">+ Draw</button>
+        <button class="btn" id="addTextLayerBtn" title="New text layer">+ Text</button>
+        <button class="btn" id="addImageLayerBtn" title="New image layer">+ Image</button>
+        <button class="btn" id="addEdgeLayerBtn" title="New stamp edge layer">+ Edge</button>
+      </div>
+      <input type="file" id="imageLayerUpload" accept="image/*" class="hidden">
+      <div id="layerList" class="layer-list"></div>
+      <div class="hint">
+        Top of list = drawn on top. Click a layer to select it, double-click its name to rename.
+        Brush / Fill / Picker paint on the selected Draw layer. With the Move tool: drag a layer
+        body to move it, drag a corner handle to resize, arrow keys nudge 1px (Shift = 4px).
+      </div>
+      <div id="transformPanel" class="hidden">
+        <div class="panel-title" style="margin-top:14px;">Transform — <span id="tfName" class="dim"></span></div>
+        <div class="row">
+          <div class="field"><label>X</label><input type="number" id="tfX" value="0"></div>
+          <div class="field"><label>Y</label><input type="number" id="tfY" value="0"></div>
+          <div class="field"><label>Scale</label><input type="number" id="tfScale" value="1" step="0.25" min="0.1" max="10"></div>
+        </div>
+        <button class="btn" id="tfReset" style="width:100%;">Reset transform</button>
+      </div>
+    </div>
+
+    <div id="tab-bg" class="tab-content">
       <div class="field">
         <label>Background type</label>
         <select class="select" id="bgType">
@@ -126,20 +160,11 @@
           <option value="boomerang">Boomerang (ping-pong)</option>
         </select>
       </div>
-      <div class="hint">Animated GIFs are split into frames. Filters in the FX tab apply to the background and are baked into the export.</div>
-    </div>
-
-    <div id="tab-deco" class="tab-content">
-      <div class="upload-box" id="decoUploadBox">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <div>Upload decoration image</div>
-      </div>
-      <input type="file" id="decoUpload" accept="image/*" class="hidden">
-      <div class="hint">Decorations attach to the current frame. Drag them with the Move tool.</div>
-      <div id="decoList" style="margin-top:10px;"></div>
+      <div class="hint">The background is the bottom layer of the stack. Animated GIFs are split into frames. Filters in the FX tab apply to the background and are baked into the export.</div>
     </div>
 
     <div id="tab-text" class="tab-content">
+      <div class="hint" id="textTargetNote" style="margin-top:0;">No text layer selected — these settings apply to the next text you place.</div>
       <div class="field">
         <label>Text content</label>
         <input type="text" id="textContent" placeholder="rawr xD" style="width:100%;">
@@ -172,47 +197,53 @@
       </div>
       <div class="hint">Click the canvas with the Text tool to place, or:</div>
       <button class="btn" style="width:100%;margin-top:8px;" id="addTextBtn">Place text at center</button>
-      <div id="textList" style="margin-top:10px;"></div>
+      <div class="hint">Placed text is a layer — grab it with the Move tool to reposition, drag a corner to resize, or edit it live here while it's selected.</div>
     </div>
 
     <div id="tab-perf" class="tab-content">
-      <div class="field">
-        <label>Style</label>
-        <select class="select" id="perfStyle">
-          <option value="none">None (classic blinkie)</option>
-          <option value="circles">Postage circles</option>
-          <option value="squares">Pixel squares</option>
-          <option value="dashes">DeviantArt dashes</option>
-          <option value="stars">Stars</option>
-        </select>
+      <div id="edgeEmpty">
+        <div class="hint" style="margin-top:0;">No stamp edge layer yet. Add one to give your stamp a perforated border — it becomes a layer you can move, resize, and reorder like any other.</div>
+        <button class="btn" style="width:100%;margin-top:8px;" id="edgeAddBtn">Add stamp edge layer</button>
       </div>
-      <div class="field">
-        <label>Edge fill</label>
-        <select class="select" id="perfColorType">
-          <option value="white">White paper</option>
-          <option value="custom">Custom color</option>
-          <option value="rainbow">Rainbow</option>
-          <option value="image">Uploaded image</option>
-        </select>
-      </div>
-      <div class="field hidden" id="perfCustomColorField">
-        <input type="color" id="perfColor" value="#ffffff" class="color-well">
-      </div>
-      <div class="field hidden" id="perfImageField">
-        <div class="upload-box" id="perfUploadBox" style="padding:12px;">
-          <div>Click to upload edge image</div>
+      <div id="edgeControls" class="hidden">
+        <div class="field">
+          <label>Style</label>
+          <select class="select" id="perfStyle">
+            <option value="circles">Postage circles</option>
+            <option value="squares">Pixel squares</option>
+            <option value="dashes">DeviantArt dashes</option>
+            <option value="stars">Stars</option>
+          </select>
         </div>
-        <input type="file" id="perfUpload" accept="image/*" class="hidden">
+        <div class="field">
+          <label>Edge fill</label>
+          <select class="select" id="perfColorType">
+            <option value="white">White paper</option>
+            <option value="custom">Custom color</option>
+            <option value="rainbow">Rainbow</option>
+            <option value="image">Uploaded image</option>
+          </select>
+        </div>
+        <div class="field hidden" id="perfCustomColorField">
+          <input type="color" id="perfColor" value="#ffffff" class="color-well">
+        </div>
+        <div class="field hidden" id="perfImageField">
+          <div class="upload-box" id="perfUploadBox" style="padding:12px;">
+            <div>Click to upload edge image</div>
+          </div>
+          <input type="file" id="perfUpload" accept="image/*" class="hidden">
+        </div>
+        <div class="field">
+          <label>Hole size <span class="dim" id="perfSizeLabel">3</span></label>
+          <input type="range" min="2" max="8" value="3" id="perfSize">
+        </div>
+        <div class="field">
+          <label>Spacing <span class="dim" id="perfSpacingLabel">6</span></label>
+          <input type="range" min="4" max="12" value="6" id="perfSpacing">
+        </div>
+        <div class="hint">Holes are punched as real transparency through every layer below the edge layer &mdash; the page behind the GIF shows through.</div>
+        <button class="btn" style="width:100%;" id="edgeRemoveBtn">Remove edge layer</button>
       </div>
-      <div class="field">
-        <label>Hole size <span class="dim" id="perfSizeLabel">3</span></label>
-        <input type="range" min="2" max="8" value="3" id="perfSize">
-      </div>
-      <div class="field">
-        <label>Spacing <span class="dim" id="perfSpacingLabel">6</span></label>
-        <input type="range" min="4" max="12" value="6" id="perfSpacing">
-      </div>
-      <div class="hint">Holes are punched as real transparency &mdash; the page behind the GIF shows through.</div>
     </div>
 
     <div id="tab-filters" class="tab-content">
