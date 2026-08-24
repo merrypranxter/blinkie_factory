@@ -305,3 +305,94 @@ input[type="color"].color-well { width: 100%; height: 36px; padding: 2px; cursor
   padding: 1px 4px;
   border-radius: 3px;
 }
+
+/* ---------- Layers panel ---------- */
+.layer-add-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.layer-add-row .btn {
+  flex: 1;
+  padding: 5px 4px;
+  font-size: 11px;
+  justify-content: center;
+  white-space: nowrap;
+}
+.layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: var(--panel-hover);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.layer-row:hover { border-color: var(--border); }
+.layer-row.active { border-color: var(--accent); background: #26262e; }
+.layer-row .l-icon {
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  display: flex;
+}
+.layer-row .l-icon svg { width: 100%; height: 100%; }
+.layer-row.active .l-icon { color: var(--accent); }
+.layer-row .l-name {
+  flex: 1;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.layer-row .l-name input {
+  width: 100%;
+  font-size: 12px;
+  padding: 2px 4px;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text);
+  outline: none;
+}
+.layer-row .l-type {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  background: var(--bg);
+  padding: 2px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.layer-row .l-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.layer-row .l-btn:hover { color: var(--accent); }
+.layer-row .l-btn.off { opacity: 0.35; }
+
+#transformPanel .row { align-items: flex-end; }
+#transformPanel .field input { width: 100%; }
+
+/* ---------- Disabled buttons (undo/redo) ---------- */
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
