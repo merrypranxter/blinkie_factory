@@ -142,7 +142,10 @@ class GIFWriter {
       } else {
         writeCode(dict.get(current));
         if (nextCode < 4096) dict.set(combined, nextCode++);
-        if (nextCode >= (1 << codeSize) && codeSize < 12) codeSize++;
+        // Deferred code-size growth: the decoder's dictionary trails the
+        // encoder's by one entry, so bump only once nextCode *exceeds*
+        // what codeSize bits can hold (not when it merely reaches it).
+        if (nextCode > (1 << codeSize) && codeSize < 12) codeSize++;
         if (nextCode >= 4096) { writeCode(clearCode); init(); }
         current = c;
       }
