@@ -21,22 +21,48 @@ python3 -m http.server 8000
 Also works straight from **GitHub Pages**: Settings → Pages → deploy from
 branch → `main` / root.
 
-## Layer stack (per frame)
+## Layer stack
 
-1. **Background** — solid color, uploaded image, or **animated GIF**
-   (split into frames by a hand-rolled decoder: LZW decompression,
-   disposal methods, transparency, interlacing), with an FX chain
-   (pixelate, blur, noise, brightness, contrast, saturation, hue shift)
-   baked into the export
-2. **Pixel art** — hand-drawn per-frame raster with brush, eraser,
-   cell fill, and color picker
-3. **Decorations** — uploaded images, draggable with the Move tool
-4. **Text** — pixel-font rendering (Press Start 2P, VT323, Silkscreen,
-   Pixelify Sans, system mono) with optional outline; click the canvas
-   with the Text tool to place, drag with the Move tool to adjust
-5. **Perforation** — not an overlay: holes are punched as actual alpha
-   (`destination-out` compositing), so the exported GIF lets the page
-   behind it show through
+A real, reorderable stack — top of the list renders on top:
+
+- **Background** — one, pinned to the bottom. Solid color, uploaded image,
+  or **animated GIF** (split into frames by a hand-rolled decoder: LZW
+  decompression, disposal methods, transparency, interlacing), with an FX
+  chain (pixelate, blur, noise, brightness, contrast, saturation, hue
+  shift) baked into the export
+- **Draw layers** — as many as you want. Each holds its own per-frame
+  pixel raster; brush / eraser / cell fill / picker paint on the selected
+  one (picking a tool auto-selects the topmost draw layer if needed)
+- **Text layers** — as many as you want. Pixel-font rendering (Press
+  Start 2P, VT323, Silkscreen, Pixelify Sans, system mono) with optional
+  outline. Editable **live** any time: select a text layer and the Text
+  tab edits it in place — content, font, size, color
+- **Image layers** — uploaded decorations, one per layer, centered on drop
+- **Edge layer** — the stamp perforation border. Not an overlay: holes are
+  punched as actual alpha (`destination-out`) through every layer *below
+  it in the stack*, so layers above it draw right over the border and the
+  exported GIF still lets the page behind show through
+
+Every layer above the background can be grabbed and transformed
+**non-destructively**:
+
+- **Move tool** — drag the layer body to move it (clicking also selects
+  the layer in the stack), drag a corner handle to resize, arrow keys
+  nudge 1 px (Shift = 4 px)
+- **Transform panel** — exact X / Y / Scale fields when precision matters
+- Draw layers scale nearest-neighbor, so pixel art stays crunchy; text
+  scales by re-rendering at the new size, so it stays sharp
+- Per-layer visibility eye, double-click rename, up/down reorder buttons,
+  delete — the background can't be deleted or moved
+
+## Undo / redo
+
+Full snapshot history (40 steps) with buttons in the top bar and
+**Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y**. Covers strokes, fills, layer
+add/delete/reorder/visibility/rename, transforms, text edits, frame
+add/duplicate/delete, background and edge changes, and canvas resizes.
+Rapid repeats of one gesture (nudges, slider drags, typing) coalesce into
+a single undo step, and click-without-moving never creates phantom steps.
 
 ## Features
 
@@ -51,8 +77,8 @@ branch → `main` / root.
 - **Cell fill tool** — click a square, that square fills. Shift+click
   for classic flood fill. Brush still doodles freehand
 - **Frame timeline** — add, duplicate, delete, select; live thumbnails
-  (including animated backgrounds); onion skinning; playback with
-  adjustable FPS; drawing auto-pauses playback
+  (including animated backgrounds); onion skinning on the active draw
+  layer; playback with adjustable FPS; drawing auto-pauses playback
 - **4 perforation styles** — postage circles, pixel squares, DeviantArt
   dashes, stars — with adjustable hole size and spacing
 - **Edge fill** — white paper, custom color, rainbow gradient, or an
@@ -67,20 +93,21 @@ branch → `main` / root.
 ```
 index.html          app shell
 css/style.css       dark editor UI
-js/app.js           editor state, render pipeline, tools, timeline, export
+js/app.js           editor state, layer stack, render pipeline, tools,
+                    undo/redo history, timeline, export
 js/gif-encoder.js   GIF89a writer (LZW + web-safe palette + transparency)
 js/gif-decoder.js   GIF89a reader (LZW + disposal + interlacing) for uploads
 ```
 
-## Roadmap (v2)
+## Roadmap (v3)
 
 - Video upload → frame extraction
 - Sparse keyframe system: draw frame 1, edit frame 5, hold in between
 - Frame copy-paste between arbitrary frames
-- Undo/redo
 - Custom TTF/OTF font upload via `@font-face` injection
 - Animated perforation borders (uploaded GIF in the edge, frame-synced)
 - Independent background loop (bg plays at its own rate, not per-frame)
+- Drag-to-reorder in the layer list, layer groups
 
 ## License
 
