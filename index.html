@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blinkie &amp; Stamp Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Silkscreen:wght@400;700&family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Blinkie Maker</h1>
+  <button class="btn layout-btn active" data-layout="blinkie">Blinkie 150&times;20</button>
+  <button class="btn layout-btn" data-layout="long">Long 300&times;20</button>
+  <button class="btn layout-btn" data-layout="stamp">Stamp 100&times;100</button>
+  <div class="divider-v"></div>
+  <div class="row">
+    <input type="number" id="cw" value="150" min="20" max="800" style="width:60px">
+    <span class="dim">&times;</span>
+    <input type="number" id="ch" value="20" min="10" max="600" style="width:60px">
+    <button class="btn" id="applySize">Apply</button>
+  </div>
+  <div style="flex:1"></div>
+  <button class="btn" id="playBtn">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    <span id="playLabel">Play</span>
+  </button>
+  <button class="btn btn-primary" id="exportBtn">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Export GIF
+  </button>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="panel">
+      <div class="panel-title">Tools</div>
+      <div class="tool-grid">
+        <div class="tool-btn active" data-tool="brush" title="Brush">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13.5c0 2.5-2 4.5-4.5 4.5S9 16 9 13.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5z"/><path d="M9 13.5L4.5 9 3 3l6 1.5L13.5 9"/></svg>
+        </div>
+        <div class="tool-btn" data-tool="eraser" title="Eraser">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z"/><path d="M17 17L7 7"/></svg>
+        </div>
+        <div class="tool-btn" data-tool="fill" title="Fill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11.5c0 2.5-2 4.5-4.5 4.5S10 14 10 11.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5z"/><path d="M10 11.5L5.5 7 4 1l6 1.5L14.5 7"/></svg>
+        </div>
+        <div class="tool-btn" data-tool="picker" title="Color Picker">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.2 7.5l-3.7-3.7c-1-1-2.5-1-3.4 0L3.5 13.4c-.5.5-.5 1.2 0 1.7l3.7 3.7c.5.5 1.2.5 1.7 0l9.6-9.6c1-1 1-2.5 0-3.4z"/><path d="M14.5 6.5l3 3"/></svg>
+        </div>
+        <div class="tool-btn" data-tool="move" title="Move (drag decorations &amp; text)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M19 9l3 3-3 3M9 19l3 3 3-3"/></svg>
+        </div>
+        <div class="tool-btn" data-tool="text" title="Text (click canvas to place)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Color</div>
+      <input type="color" id="colorPicker" value="#ff2a6d" class="color-well">
+      <div class="color-row" id="palette"></div>
+      <div style="margin-top:10px;">
+        <div class="check"><input type="checkbox" id="gridToggle" checked> <label for="gridToggle">Show grid</label></div>
+        <div class="check"><input type="checkbox" id="onionToggle" checked> <label for="onionToggle">Onion skin</label></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Brush Size</div>
+      <input type="range" min="1" max="8" value="1" id="brushSize">
+      <div class="range-label" id="brushSizeLabel">1 px</div>
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <canvas id="mainCanvas" width="150" height="20"></canvas>
+    <div class="zoom-controls">
+      <button class="btn" id="zoomOut">&minus;</button>
+      <span class="zoom-label" id="zoomLabel">8&times;</span>
+      <button class="btn" id="zoomIn">+</button>
+    </div>
+  </div>
+
+  <div class="rightbar">
+    <div class="tabs">
+      <div class="tab active" data-tab="bg">BG</div>
+      <div class="tab" data-tab="deco">Deco</div>
+      <div class="tab" data-tab="text">Text</div>
+      <div class="tab" data-tab="perf">Edge</div>
+      <div class="tab" data-tab="filters">FX</div>
+    </div>
+
+    <div id="tab-bg" class="tab-content active">
+      <div class="field">
+        <label>Background type</label>
+        <select class="select" id="bgType">
+          <option value="color">Solid color</option>
+          <option value="image">Upload image</option>
+        </select>
+      </div>
+      <div class="field" id="bgColorField">
+        <label>Color</label>
+        <input type="color" id="bgColor" value="#000000" class="color-well">
+      </div>
+      <div class="field hidden" id="bgImageField">
+        <div class="upload-box" id="bgUploadBox">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div>Click to upload image</div>
+        </div>
+        <input type="file" id="bgUpload" accept="image/*" class="hidden">
+      </div>
+      <div class="hint">Filters in the FX tab apply to the background layer and are baked into the export.</div>
+    </div>
+
+    <div id="tab-deco" class="tab-content">
+      <div class="upload-box" id="decoUploadBox">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div>Upload decoration image</div>
+      </div>
+      <input type="file" id="decoUpload" accept="image/*" class="hidden">
+      <div class="hint">Decorations attach to the current frame. Drag them with the Move tool.</div>
+      <div id="decoList" style="margin-top:10px;"></div>
+    </div>
+
+    <div id="tab-text" class="tab-content">
+      <div class="field">
+        <label>Text content</label>
+        <input type="text" id="textContent" placeholder="rawr xD" style="width:100%;">
+      </div>
+      <div class="field">
+        <label>Font</label>
+        <select class="select" id="textFont">
+          <option value="'Press Start 2P', monospace">Press Start 2P</option>
+          <option value="'VT323', monospace">VT323</option>
+          <option value="'Silkscreen', monospace">Silkscreen</option>
+          <option value="'Pixelify Sans', monospace">Pixelify Sans</option>
+          <option value="monospace">System Mono</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Size <span class="dim" id="textSizeLabel">10px</span></label>
+        <input type="range" min="6" max="48" value="10" id="textSize">
+      </div>
+      <div class="field">
+        <label>Color</label>
+        <input type="color" id="textColor" value="#ffffff" class="color-well">
+      </div>
+      <div class="check">
+        <input type="checkbox" id="textOutline">
+        <label for="textOutline">Outline</label>
+      </div>
+      <div class="field">
+        <label>Outline color</label>
+        <input type="color" id="textOutlineColor" value="#000000" class="color-well">
+      </div>
+      <div class="hint">Click the canvas with the Text tool to place, or:</div>
+      <button class="btn" style="width:100%;margin-top:8px;" id="addTextBtn">Place text at center</button>
+      <div id="textList" style="margin-top:10px;"></div>
+    </div>
+
+    <div id="tab-perf" class="tab-content">
+      <div class="field">
+        <label>Style</label>
+        <select class="select" id="perfStyle">
+          <option value="none">None (classic blinkie)</option>
+          <option value="circles">Postage circles</option>
+          <option value="squares">Pixel squares</option>
+          <option value="dashes">DeviantArt dashes</option>
+          <option value="stars">Stars</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Edge fill</label>
+        <select class="select" id="perfColorType">
+          <option value="white">White paper</option>
+          <option value="custom">Custom color</option>
+          <option value="rainbow">Rainbow</option>
+          <option value="image">Uploaded image</option>
+        </select>
+      </div>
+      <div class="field hidden" id="perfCustomColorField">
+        <input type="color" id="perfColor" value="#ffffff" class="color-well">
+      </div>
+      <div class="field hidden" id="perfImageField">
+        <div class="upload-box" id="perfUploadBox" style="padding:12px;">
+          <div>Click to upload edge image</div>
+        </div>
+        <input type="file" id="perfUpload" accept="image/*" class="hidden">
+      </div>
+      <div class="field">
+        <label>Hole size <span class="dim" id="perfSizeLabel">3</span></label>
+        <input type="range" min="2" max="8" value="3" id="perfSize">
+      </div>
+      <div class="field">
+        <label>Spacing <span class="dim" id="perfSpacingLabel">6</span></label>
+        <input type="range" min="4" max="12" value="6" id="perfSpacing">
+      </div>
+      <div class="hint">Holes are punched as real transparency &mdash; the page behind the GIF shows through.</div>
+    </div>
+
+    <div id="tab-filters" class="tab-content">
+      <div class="field"><label>Pixelate <span class="dim" id="fPixelateLabel">0</span></label><input type="range" min="0" max="10" value="0" data-filter="pixelate" id="fPixelate"></div>
+      <div class="field"><label>Blur <span class="dim" id="fBlurLabel">0</span></label><input type="range" min="0" max="10" value="0" data-filter="blur" id="fBlur"></div>
+      <div class="field"><label>Noise <span class="dim" id="fNoiseLabel">0</span></label><input type="range" min="0" max="100" value="0" data-filter="noise" id="fNoise"></div>
+      <div class="field"><label>Brightness <span class="dim" id="fBrightLabel">0</span></label><input type="range" min="-100" max="100" value="0" data-filter="brightness" id="fBright"></div>
+      <div class="field"><label>Contrast <span class="dim" id="fContrastLabel">0</span></label><input type="range" min="-100" max="100" value="0" data-filter="contrast" id="fContrast"></div>
+      <div class="field"><label>Saturation <span class="dim" id="fSatLabel">0</span></label><input type="range" min="-100" max="100" value="0" data-filter="saturation" id="fSat"></div>
+      <div class="field"><label>Hue shift <span class="dim" id="fHueLabel">0&deg;</span></label><input type="range" min="0" max="360" value="0" data-filter="hue" id="fHue"></div>
+    </div>
+  </div>
+</div>
+
+<div class="timeline">
+  <div class="timeline-tools">
+    <button class="btn" id="addFrameBtn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add frame
+    </button>
+    <button class="btn" id="dupFrameBtn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Duplicate
+    </button>
+    <button class="btn" id="delFrameBtn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Delete
+    </button>
+    <div class="divider-v"></div>
+    <label class="fps-label" for="fpsInput">FPS</label>
+    <input type="number" id="fpsInput" value="12" min="1" max="60" style="width:50px;">
+    <div style="flex:1"></div>
+    <span class="dim" id="frameInfo">Frame 1 of 3</span>
+  </div>
+  <div class="timeline-frames" id="timelineFrames"></div>
+</div>
+
+<script src="js/gif-encoder.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
