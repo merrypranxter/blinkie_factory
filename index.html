@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Blinkie &amp; Stamp Maker</title>
+<link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Silkscreen:wght@400;700&family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
@@ -45,7 +46,7 @@
         <div class="tool-btn" data-tool="eraser" title="Eraser">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z"/><path d="M17 17L7 7"/></svg>
         </div>
-        <div class="tool-btn" data-tool="fill" title="Fill">
+        <div class="tool-btn" data-tool="fill" title="Fill one pixel cell (Shift+click = flood fill)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11.5c0 2.5-2 4.5-4.5 4.5S10 14 10 11.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5z"/><path d="M10 11.5L5.5 7 4 1l6 1.5L14.5 7"/></svg>
         </div>
         <div class="tool-btn" data-tool="picker" title="Color Picker">
@@ -78,7 +79,10 @@
   </div>
 
   <div class="canvas-area">
-    <canvas id="mainCanvas" width="150" height="20"></canvas>
+    <div class="canvas-wrap">
+      <canvas id="mainCanvas" width="150" height="20"></canvas>
+      <canvas id="gridCanvas"></canvas>
+    </div>
     <div class="zoom-controls">
       <button class="btn" id="zoomOut">&minus;</button>
       <span class="zoom-label" id="zoomLabel">8&times;</span>
@@ -110,11 +114,19 @@
       <div class="field hidden" id="bgImageField">
         <div class="upload-box" id="bgUploadBox">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <div>Click to upload image</div>
+          <div>Click to upload image or GIF</div>
         </div>
         <input type="file" id="bgUpload" accept="image/*" class="hidden">
       </div>
-      <div class="hint">Filters in the FX tab apply to the background layer and are baked into the export.</div>
+      <div class="field hidden" id="bgAnimField">
+        <label>Animation <span class="dim" id="bgAnimInfo"></span></label>
+        <select class="select" id="bgMapping">
+          <option value="sync">Sync to timeline frames</option>
+          <option value="stretch">Stretch across timeline</option>
+          <option value="boomerang">Boomerang (ping-pong)</option>
+        </select>
+      </div>
+      <div class="hint">Animated GIFs are split into frames. Filters in the FX tab apply to the background and are baked into the export.</div>
     </div>
 
     <div id="tab-deco" class="tab-content">
@@ -239,6 +251,7 @@
 </div>
 
 <script src="js/gif-encoder.js"></script>
+<script src="js/gif-decoder.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

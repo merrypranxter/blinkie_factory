@@ -152,18 +152,32 @@ input[type="color"].color-well { width: 100%; height: 36px; padding: 2px; cursor
 .canvas-area {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
   position: relative;
   overflow: auto;
   background: repeating-conic-gradient(#1a1a1f 0% 25%, #15151a 0% 50%) 50% / 20px 20px;
 }
+/* margin:auto centers when the canvas fits, and stays fully
+   scrollable (no clipped left edge) when it overflows */
+.canvas-wrap {
+  position: relative;
+  margin: auto;
+  flex-shrink: 0;
+  align-self: center;
+}
 #mainCanvas {
+  display: block;
   image-rendering: pixelated;
   box-shadow: 0 0 0 1px var(--border), 0 8px 32px rgba(0,0,0,0.5);
   cursor: crosshair;
   background: transparent;
-  margin: auto;
+}
+#gridCanvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  image-rendering: pixelated;
+  mix-blend-mode: difference;
 }
 .zoom-controls {
   position: absolute;
