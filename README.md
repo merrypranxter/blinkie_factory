@@ -23,11 +23,13 @@ branch → `main` / root.
 
 ## Layer stack (per frame)
 
-1. **Background** — solid color or uploaded image, with an FX chain
+1. **Background** — solid color, uploaded image, or **animated GIF**
+   (split into frames by a hand-rolled decoder: LZW decompression,
+   disposal methods, transparency, interlacing), with an FX chain
    (pixelate, blur, noise, brightness, contrast, saturation, hue shift)
    baked into the export
-2. **Pixel art** — hand-drawn per-frame raster with brush, eraser, fill,
-   and color picker
+2. **Pixel art** — hand-drawn per-frame raster with brush, eraser,
+   cell fill, and color picker
 3. **Decorations** — uploaded images, draggable with the Move tool
 4. **Text** — pixel-font rendering (Press Start 2P, VT323, Silkscreen,
    Pixelify Sans, system mono) with optional outline; click the canvas
@@ -39,9 +41,18 @@ branch → `main` / root.
 ## Features
 
 - **3 layout presets** — Blinkie 150×20, Long 300×20, Stamp 100×100 —
-  plus custom dimensions (20–800 × 10–600)
-- **Frame timeline** — add, duplicate, delete, select; thumbnails;
-  onion skinning; grid overlay; live playback with adjustable FPS
+  plus custom dimensions (20–800 × 10–600), with auto-fit zoom
+- **Animated GIF backgrounds** — upload a GIF and it's split into
+  frames; a pristine timeline auto-extends to match and adopts the
+  GIF's frame rate. Three mapping modes: sync to timeline, stretch,
+  boomerang (ping-pong)
+- **Visible pixel grid** — every cell outlined on a crisp overlay that
+  inverts against any background (never exported)
+- **Cell fill tool** — click a square, that square fills. Shift+click
+  for classic flood fill. Brush still doodles freehand
+- **Frame timeline** — add, duplicate, delete, select; live thumbnails
+  (including animated backgrounds); onion skinning; playback with
+  adjustable FPS; drawing auto-pauses playback
 - **4 perforation styles** — postage circles, pixel squares, DeviantArt
   dashes, stars — with adjustable hole size and spacing
 - **Edge fill** — white paper, custom color, rainbow gradient, or an
@@ -58,18 +69,18 @@ index.html          app shell
 css/style.css       dark editor UI
 js/app.js           editor state, render pipeline, tools, timeline, export
 js/gif-encoder.js   GIF89a writer (LZW + web-safe palette + transparency)
+js/gif-decoder.js   GIF89a reader (LZW + disposal + interlacing) for uploads
 ```
 
 ## Roadmap (v2)
 
-- Video upload → frame extraction / GIF upload → frame splitting
-  (uploaded GIFs currently render as static first frames)
+- Video upload → frame extraction
 - Sparse keyframe system: draw frame 1, edit frame 5, hold in between
 - Frame copy-paste between arbitrary frames
 - Undo/redo
 - Custom TTF/OTF font upload via `@font-face` injection
 - Animated perforation borders (uploaded GIF in the edge, frame-synced)
-- Background mapping modes: sample / hold / boomerang / independent loop
+- Independent background loop (bg plays at its own rate, not per-frame)
 
 ## License
 
