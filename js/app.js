@@ -379,6 +379,8 @@ function resizeCanvas() {
   canvas.style.height = (app.h * app.zoom) + 'px';
   gridCanvas.width = app.w * app.zoom;
   gridCanvas.height = app.h * app.zoom;
+  const sizeLabel = $('canvasSizeLabel');
+  if (sizeLabel) sizeLabel.textContent = `${app.w} × ${app.h} px`;
 }
 
 function setZoom(z) {
@@ -392,8 +394,13 @@ function setZoom(z) {
 // so nothing overflows or gets clipped on load / layout change.
 function fitZoom() {
   const area = document.querySelector('.canvas-area');
-  const zw = Math.floor((area.clientWidth - 64) / app.w);
-  const zh = Math.floor((area.clientHeight - 64) / app.h);
+  // Phone preview space is precious. Use a tighter inset there while still
+  // leaving room for the stage label and zoom controls.
+  const phone = window.matchMedia('(max-width: 760px)').matches;
+  const padX = phone ? 30 : 64;
+  const padY = phone ? 84 : 74;
+  const zw = Math.floor((area.clientWidth - padX) / app.w);
+  const zh = Math.floor((area.clientHeight - padY) / app.h);
   app.zoom = Math.max(1, Math.min(16, Math.min(zw || 1, zh || 1)));
   $('zoomLabel').textContent = app.zoom + '×';
   resizeCanvas();
@@ -1274,22 +1281,23 @@ function setTool(t) {
 function setBrushColor(c) { app.brushColor = c; }
 
 function setupEvents() {
-  // Canvas pointer + touch
-  canvas.addEventListener('mousedown', e => onPointerDown(e.clientX, e.clientY, e.shiftKey));
-  canvas.addEventListener('mousemove', e => onPointerMove(e.clientX, e.clientY));
-  canvas.addEventListener('mouseup', onPointerUp);
-  canvas.addEventListener('mouseleave', onPointerUp);
-  canvas.addEventListener('touchstart', e => {
-    e.preventDefault();
-    const t = e.touches[0];
-    onPointerDown(t.clientX, t.clientY);
-  }, { passive: false });
-  canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-    const t = e.touches[0];
-    onPointerMove(t.clientX, t.clientY);
-  }, { passive: false });
-  canvas.addEventListener('touchend', onPointerUp);
+  // One pointer model for mouse, Apple Pencil, and fingers. Pointer capture
+  // keeps a stroke alive if a finger drifts a few pixels outside the canvas.
+  canvas.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse') e.preventDefault();
+    canvas.setPointerCapture?.(e.pointerId);
+    onPointerDown(e.clientX, e.clientY, e.shiftKey);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (isDrawing || dragTarget) e.preventDefault();
+    onPointerMove(e.clientX, e.clientY);
+  });
+  canvas.addEventListener('pointerup', e => {
+    canvas.releasePointerCapture?.(e.pointerId);
+    onPointerUp();
+  });
+  canvas.addEventListener('pointercancel', onPointerUp);
+  canvas.addEventListener('lostpointercapture', onPointerUp);
 
   // Keyboard: undo/redo + arrow-key nudge for the selected layer
   document.addEventListener('keydown', e => {
@@ -1342,6 +1350,17 @@ function setupEvents() {
   // Zoom
   $('zoomOut').addEventListener('click', () => setZoom(app.zoom - 1));
   $('zoomIn').addEventListener('click', () => setZoom(app.zoom + 1));
+  $('zoomFit').addEventListener('click', fitZoom);
+
+  // Re-fit after rotating a phone or when Safari's dynamic browser chrome
+  // changes the usable viewport. Debounce to avoid repainting continuously.
+  let fitTimer = null;
+  const queueFit = () => {
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(fitZoom, 120);
+  };
+  window.addEventListener('resize', queueFit, { passive: true });
+  window.addEventListener('orientationchange', queueFit, { passive: true });
 
   // Tabs
   document.querySelectorAll('.tab').forEach(t =>
@@ -1656,7 +1675,8 @@ async function exportGIF() {
   a.href = url;
   a.download = 'blinkie.gif';
   a.click();
-  URL.revokeObjectURL(url);
+  // Safari may not begin reading the blob until after the click handler exits.
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 
   if (wasPlaying) startPlayback();
 }

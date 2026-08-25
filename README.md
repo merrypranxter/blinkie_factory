@@ -6,6 +6,14 @@ frame-cycled animation, and postage-stamp perforation with **real transparency**
 
 No build step, no dependencies, no server. Open `index.html` and make blinkies.
 
+## Phone-first interface
+
+The editor is fully usable on iPhone-sized screens. The live canvas is placed
+first, followed by the frame timeline, large touch tools, and tabbed settings.
+It respects the iPhone safe areas, uses dynamic viewport units so Safari's
+address bar cannot swallow the workspace, auto-fits after rotation, and uses
+Pointer Events so finger and Apple Pencil strokes remain continuous.
+
 ## Run it
 
 ```bash

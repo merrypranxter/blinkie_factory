@@ -12,61 +12,80 @@
 </head>
 <body>
 
-<div class="topbar">
-  <h1>Blinkie Maker</h1>
-  <button class="btn layout-btn active" data-layout="blinkie">Blinkie 150&times;20</button>
-  <button class="btn layout-btn" data-layout="long">Long 300&times;20</button>
-  <button class="btn layout-btn" data-layout="stamp">Stamp 100&times;100</button>
-  <div class="divider-v"></div>
-  <div class="row">
-    <input type="number" id="cw" value="150" min="20" max="800" style="width:60px">
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true"></div>
+    <div>
+      <h1>Blinkie Maker</h1>
+      <p>tiny internet nonsense laboratory</p>
+    </div>
+  </div>
+
+  <div class="preset-strip" aria-label="Canvas presets">
+    <button class="btn layout-btn active" data-layout="blinkie">Blinkie <span>150&times;20</span></button>
+    <button class="btn layout-btn" data-layout="long">Long <span>300&times;20</span></button>
+    <button class="btn layout-btn" data-layout="stamp">Stamp <span>100&times;100</span></button>
+  </div>
+
+  <div class="custom-size" aria-label="Custom canvas size">
+    <input type="number" id="cw" value="150" min="20" max="800" inputmode="numeric" aria-label="Canvas width">
     <span class="dim">&times;</span>
-    <input type="number" id="ch" value="20" min="10" max="600" style="width:60px">
+    <input type="number" id="ch" value="20" min="10" max="600" inputmode="numeric" aria-label="Canvas height">
     <button class="btn" id="applySize">Apply</button>
   </div>
-  <div class="divider-v"></div>
-  <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
-    Undo
-  </button>
-  <button class="btn" id="redoBtn" title="Redo (Ctrl+Shift+Z / Ctrl+Y)">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/></svg>
-    Redo
-  </button>
-  <div style="flex:1"></div>
-  <button class="btn" id="playBtn">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-    <span id="playLabel">Play</span>
-  </button>
-  <button class="btn btn-primary" id="exportBtn">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Export GIF
-  </button>
-</div>
+
+  <div class="history-actions">
+    <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+      <span>Undo</span>
+    </button>
+    <button class="btn" id="redoBtn" title="Redo (Ctrl+Shift+Z / Ctrl+Y)" aria-label="Redo">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/></svg>
+      <span>Redo</span>
+    </button>
+  </div>
+
+  <div class="primary-actions">
+    <button class="btn" id="playBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <span id="playLabel">Play</span>
+    </button>
+    <button class="btn btn-primary" id="exportBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export GIF
+    </button>
+  </div>
+</header>
 
 <div class="main">
   <div class="sidebar">
     <div class="panel">
       <div class="panel-title">Tools</div>
       <div class="tool-grid">
-        <div class="tool-btn active" data-tool="brush" title="Brush">
+        <button type="button" class="tool-btn active" data-tool="brush" title="Brush" aria-label="Brush tool">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13.5c0 2.5-2 4.5-4.5 4.5S9 16 9 13.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5z"/><path d="M9 13.5L4.5 9 3 3l6 1.5L13.5 9"/></svg>
-        </div>
-        <div class="tool-btn" data-tool="eraser" title="Eraser">
+          <span class="tool-name">Brush</span>
+        </button>
+        <button type="button" class="tool-btn" data-tool="eraser" title="Eraser" aria-label="Eraser tool">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z"/><path d="M17 17L7 7"/></svg>
-        </div>
-        <div class="tool-btn" data-tool="fill" title="Fill one pixel cell (Shift+click = flood fill)">
+          <span class="tool-name">Erase</span>
+        </button>
+        <button type="button" class="tool-btn" data-tool="fill" title="Fill one pixel cell (Shift+click = flood fill)" aria-label="Fill tool">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11.5c0 2.5-2 4.5-4.5 4.5S10 14 10 11.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5z"/><path d="M10 11.5L5.5 7 4 1l6 1.5L14.5 7"/></svg>
-        </div>
-        <div class="tool-btn" data-tool="picker" title="Color Picker">
+          <span class="tool-name">Fill</span>
+        </button>
+        <button type="button" class="tool-btn" data-tool="picker" title="Color Picker" aria-label="Color picker tool">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.2 7.5l-3.7-3.7c-1-1-2.5-1-3.4 0L3.5 13.4c-.5.5-.5 1.2 0 1.7l3.7 3.7c.5.5 1.2.5 1.7 0l9.6-9.6c1-1 1-2.5 0-3.4z"/><path d="M14.5 6.5l3 3"/></svg>
-        </div>
-        <div class="tool-btn" data-tool="move" title="Move / resize layers — drag body to move, drag a corner to resize, arrows to nudge">
+          <span class="tool-name">Pick</span>
+        </button>
+        <button type="button" class="tool-btn" data-tool="move" title="Move / resize layers — drag body to move, drag a corner to resize, arrows to nudge" aria-label="Move and resize tool">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M19 9l3 3-3 3M9 19l3 3 3-3"/></svg>
-        </div>
-        <div class="tool-btn" data-tool="text" title="Text (click canvas to place a text layer)">
+          <span class="tool-name">Move</span>
+        </button>
+        <button type="button" class="tool-btn" data-tool="text" title="Text (click canvas to place a text layer)" aria-label="Text tool">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
-        </div>
+          <span class="tool-name">Text</span>
+        </button>
       </div>
     </div>
 
@@ -88,6 +107,11 @@
   </div>
 
   <div class="canvas-area">
+    <div class="stage-head">
+      <span class="live-dot"></span>
+      <strong>Live preview</strong>
+      <span id="canvasSizeLabel">150 &times; 20 px</span>
+    </div>
     <div class="canvas-wrap">
       <canvas id="mainCanvas" width="150" height="20"></canvas>
       <canvas id="gridCanvas"></canvas>
@@ -96,6 +120,7 @@
       <button class="btn" id="zoomOut">&minus;</button>
       <span class="zoom-label" id="zoomLabel">8&times;</span>
       <button class="btn" id="zoomIn">+</button>
+      <button class="btn fit-btn" id="zoomFit">Fit</button>
     </div>
   </div>
 
