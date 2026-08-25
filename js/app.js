@@ -120,15 +120,19 @@ function makeTextLayer(props, x, y) {
            outlineColor: props.outlineColor };
 }
 
-function makeImageLayer(img) {
-  const fit = Math.min(1, app.w / img.width, app.h / img.height);
-  const w = Math.max(1, Math.round(img.width * fit));
-  const h = Math.max(1, Math.round(img.height * fit));
+function makeImageLayer(asset) {
+  const src = asset.frames?.[0] || asset.image;
+  const sourceW = asset.width || src.width;
+  const sourceH = asset.height || src.height;
+  const fit = Math.min(1, app.w / sourceW, app.h / sourceH);
+  const w = Math.max(1, Math.round(sourceW * fit));
+  const h = Math.max(1, Math.round(sourceH * fit));
   return { id: makeLayerId(), type: 'image',
-           name: 'Image ' + countLayersOfType('image'),
+           name: asset.name || ('Image ' + countLayersOfType('image')),
            visible: true,
            x: Math.round((app.w - w) / 2), y: Math.round((app.h - h) / 2),
-           scale: 1, image: img, w, h };
+           scale: 1, image: asset.image || null,
+           frames: asset.frames || [], mapping: 'sync', w, h };
 }
 
 function makeBorderLayer() {
@@ -136,7 +140,7 @@ function makeBorderLayer() {
            visible: true, x: 0, y: 0, scale: 1,
            style: 'circles',        // circles | squares | dashes | stars
            colorType: 'white',      // white | custom | rainbow | image
-           color: '#ffffff', image: null,
+           color: '#ffffff', image: null, frames: [], mapping: 'sync',
            size: 3, spacing: 6 };
 }
 
@@ -314,7 +318,7 @@ function dupFrame() {
 }
 
 function delFrame() {
-  if (app.frameCount <= 1) return;
+  if (app.frameCount <= Math.max(1, longestImportedGifLength())) return;
   pushHistory();
   const i = app.currentFrame;
   app.layers.forEach(L => { if (L.type === 'pixels') L.frames.splice(i, 1); });
@@ -322,6 +326,47 @@ function delFrame() {
   if (app.currentFrame >= app.frameCount) app.currentFrame = app.frameCount - 1;
   rebuildTimeline();
   render();
+}
+
+function longestImportedGifLength() {
+  let longest = app.bg.frames.length;
+  app.layers.forEach(L => {
+    if ((L.type === 'image' || L.type === 'border') && L.frames?.length) {
+      longest = Math.max(longest, L.frames.length);
+    }
+  });
+  return longest;
+}
+
+function updateFrameDeleteButton() {
+  const min = Math.max(1, longestImportedGifLength());
+  $('delFrameBtn').disabled = app.frameCount <= min;
+  $('delFrameBtn').title = min > 1
+    ? `The longest imported GIF needs ${min} frames`
+    : 'Delete current frame';
+}
+
+// GIF imports define the project duration. When a new GIF is longer than the
+// current document, extend every editable draw layer to the same length.
+// Existing draw animation repeats instead of vanishing into newly blank frames.
+function extendTimelineTo(targetLength) {
+  const target = Math.max(1, Math.floor(targetLength || 1));
+  if (target <= app.frameCount) return false;
+
+  app.layers.forEach(L => {
+    if (L.type !== 'pixels') return;
+    const source = L.frames.slice();
+    if (!source.length) source.push(blankImageData());
+    while (L.frames.length < target) {
+      const src = source[L.frames.length % source.length];
+      L.frames.push(new ImageData(
+        new Uint8ClampedArray(src.data), src.width, src.height));
+    }
+  });
+
+  app.frameCount = target;
+  rebuildTimeline();
+  return true;
 }
 
 function selectFrame(idx) {
@@ -458,10 +503,13 @@ function drawLayerTo(tctx, L, idx, opts) {
       break;
     }
     case 'image': {
-      if (!L.image) break;
+      const src = L.frames?.length
+        ? animatedFrameForIndex(L.frames, idx, L.mapping)
+        : L.image;
+      if (!src) break;
       tctx.save();
       tctx.imageSmoothingEnabled = false;
-      tctx.drawImage(L.image, L.x, L.y, L.w * L.scale, L.h * L.scale);
+      tctx.drawImage(src, L.x, L.y, L.w * L.scale, L.h * L.scale);
       tctx.restore();
       break;
     }
@@ -470,7 +518,7 @@ function drawLayerTo(tctx, L, idx, opts) {
       break;
     }
     case 'border': {
-      drawPerforation(tctx, L);
+      drawPerforation(tctx, L, idx);
       break;
     }
   }
@@ -534,16 +582,16 @@ function layerBounds(L) {
   }
 }
 
-// Which animated-background frame should show on timeline frame i
-function bgFrameForIndex(i) {
-  const frames = app.bg.frames;
+// Choose a real decoded GIF frame for a project timeline frame. "sync"
+// loops shorter GIFs while the longest imported GIF defines timeline length.
+function animatedFrameForIndex(frames, i, mapping) {
   const n = frames.length;
   if (!n) return null;
-  if (app.bg.mapping === 'stretch') {
+  if (mapping === 'stretch') {
     const total = Math.max(1, app.frameCount);
     return frames[Math.min(n - 1, Math.floor(i / total * n))];
   }
-  if (app.bg.mapping === 'boomerang') {
+  if (mapping === 'boomerang') {
     if (n === 1) return frames[0];
     const cycle = 2 * n - 2;
     const k = i % cycle;
@@ -562,7 +610,9 @@ function buildBackground(idx) {
     x.fillStyle = app.bg.color;
     x.fillRect(0, 0, app.w, app.h);
   } else {
-    const src = app.bg.frames.length ? bgFrameForIndex(idx) : app.bg.image;
+    const src = app.bg.frames.length
+      ? animatedFrameForIndex(app.bg.frames, idx, app.bg.mapping)
+      : app.bg.image;
     if (!src) return c; // transparent
     x.drawImage(src, 0, 0, app.w, app.h);
   }
@@ -639,7 +689,7 @@ function measureTextObject(t) {
 // ---------- Stamp edge (perforation border) ----------
 // Renders a border band, then punches real alpha holes through
 // everything *below this layer* in the stack.
-function drawPerforation(tctx, L) {
+function drawPerforation(tctx, L, idx) {
   const { style, size, spacing, colorType, color } = L;
   const maxBand = Math.max(2, Math.floor(Math.min(app.w, app.h) / 2) - 1);
   const band = Math.min(size + 3, maxBand);
@@ -655,8 +705,11 @@ function drawPerforation(tctx, L) {
     grad.addColorStop(0.5, '#fee800');
     grad.addColorStop(1, '#00f5d4');
     bx.fillStyle = grad;
-  } else if (colorType === 'image' && L.image) {
-    bx.fillStyle = bx.createPattern(L.image, 'repeat');
+  } else if (colorType === 'image' && (L.image || L.frames?.length)) {
+    const src = L.frames?.length
+      ? animatedFrameForIndex(L.frames, idx, L.mapping)
+      : L.image;
+    bx.fillStyle = bx.createPattern(src, 'repeat');
   } else if (colorType === 'custom') {
     bx.fillStyle = color;
   } else {
@@ -756,11 +809,12 @@ function addTextLayerFromDraft(x, y) {
   return L;
 }
 
-function addImageLayer(img) {
+function addImageLayer(asset) {
   pushHistory();
-  const L = makeImageLayer(img);
+  const L = makeImageLayer(asset);
   app.layers.push(L);
   app.selectedLayerId = L.id;
+  if (L.frames.length > 1) extendTimelineTo(L.frames.length);
   refreshLayerList();
   syncTransformPanel();
   render();
@@ -789,6 +843,7 @@ function deleteLayer(id) {
   }
   refreshLayerList();
   refreshEdgeTab();
+  updateFrameDeleteButton();
   syncTransformPanel();
   render();
 }
@@ -896,7 +951,9 @@ function refreshLayerList() {
 
     const typeTag = document.createElement('span');
     typeTag.className = 'l-type';
-    typeTag.textContent = TYPE_LABEL[L.type];
+    typeTag.textContent = L.type === 'image' && L.frames?.length > 1
+      ? 'GIF ' + L.frames.length
+      : TYPE_LABEL[L.type];
 
     const mkBtn = (title, svg, fn, hidden) => {
       const b = document.createElement('button');
@@ -1379,7 +1436,7 @@ function setupEvents() {
   });
   $('addImageLayerBtn').addEventListener('click', () => $('imageLayerUpload').click());
   $('imageLayerUpload').addEventListener('change', e => {
-    loadImageFile(e.target.files[0], addImageLayer);
+    loadVisualFile(e.target.files[0], addImageLayer);
     e.target.value = '';
   });
   $('addEdgeLayerBtn').addEventListener('click', addEdgeLayer);
@@ -1398,7 +1455,10 @@ function setupEvents() {
   $('bgColor').addEventListener('input', e => { app.bg.color = e.target.value; render(); });
   $('bgColor').addEventListener('change', () => pushHistory('bg:color'));
   $('bgUploadBox').addEventListener('click', () => $('bgUpload').click());
-  $('bgUpload').addEventListener('change', e => handleBgUpload(e.target.files[0]));
+  $('bgUpload').addEventListener('change', e => {
+    handleBgUpload(e.target.files[0]);
+    e.target.value = '';
+  });
   $('bgMapping').addEventListener('change', e => {
     pushHistory();
     app.bg.mapping = e.target.value;
@@ -1438,10 +1498,19 @@ function setupEvents() {
   $('perfColor').addEventListener('change', () => pushHistory('edge:color'));
   $('perfUploadBox').addEventListener('click', () => $('perfUpload').click());
   $('perfUpload').addEventListener('change', e => {
-    loadImageFile(e.target.files[0], img => {
+    loadVisualFile(e.target.files[0], asset => {
       const L = borderLayer(); if (!L) return;
-      pushHistory(); L.image = img; render();
+      pushHistory();
+      L.image = asset.image;
+      L.frames = asset.frames;
+      if (L.frames.length > 1) {
+        extendTimelineTo(L.frames.length);
+        const label = $('perfUploadBox').querySelector('div');
+        if (label) label.textContent = `Animated GIF · ${L.frames.length} frames`;
+      }
+      render();
     });
+    e.target.value = '';
   });
   $('perfSize').addEventListener('input', e => {
     const L = borderLayer(); if (!L) return;
@@ -1488,84 +1557,70 @@ function switchToTab(name) {
     x.classList.toggle('active', x.id === 'tab-' + name));
 }
 
-function loadImageFile(file, cb) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const img = new Image();
-    img.onload = () => cb(img);
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-// ---------- Background upload (static image or animated GIF) ----------
-function handleBgUpload(file) {
+// ---------- Unified static-image / animated-GIF import ----------
+// Every import route uses this decoder: backgrounds, ordinary image layers,
+// and uploaded edge fills. Animated GIFs become real immutable frame canvases
+// rather than an HTMLImageElement that gets captured on frame one.
+function loadVisualFile(file, cb) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
     const buf = ev.target.result;
     const sig = String.fromCharCode(...new Uint8Array(buf.slice(0, 6)));
+
     if (sig === 'GIF89a' || sig === 'GIF87a') {
       try {
         const gif = GIFReader.parse(buf);
         if (gif.frames.length > 1) {
-          pushHistory();
-          setAnimatedBackground(gif);
+          const frames = gif.frames.map(f => {
+            const c = makeCanvas(gif.width, gif.height);
+            c.getContext('2d').putImageData(
+              new ImageData(f.rgba, gif.width, gif.height), 0, 0);
+            return c;
+          });
+          cb({
+            image: null,
+            frames,
+            delays: gif.frames.map(f => f.delay),
+            width: gif.width,
+            height: gif.height,
+            name: (file.name || 'Animated GIF').replace(/\.gif$/i, '')
+          });
           return;
         }
       } catch (err) {
-        console.warn('GIF parse failed, treating as static image:', err);
+        console.warn('GIF parse failed, treating as a static image:', err);
       }
     }
-    // Static image path
+
     const img = new Image();
+    const url = URL.createObjectURL(file);
     img.onload = () => {
-      pushHistory();
-      app.bg.image = img;
-      app.bg.frames = [];
-      updateBgAnimUI();
-      render();
+      cb({
+        image: img,
+        frames: [],
+        delays: [],
+        width: img.width,
+        height: img.height,
+        name: (file.name || 'Image').replace(/\.[^.]+$/, '')
+      });
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
-    img.src = URL.createObjectURL(file);
+    img.src = url;
   };
   reader.readAsArrayBuffer(file);
 }
 
-function setAnimatedBackground(gif) {
-  // Convert composited RGBA frames to canvases
-  app.bg.frames = gif.frames.map(f => {
-    const c = makeCanvas(gif.width, gif.height);
-    c.getContext('2d').putImageData(new ImageData(f.rgba, gif.width, gif.height), 0, 0);
-    return c;
-  });
-  app.bg.image = null;
-
-  // If the document is still pristine (nothing drawn, no extra layers),
-  // grow the timeline to match the GIF and adopt its average frame rate.
-  if (timelineIsEmpty()) {
-    const n = Math.min(60, gif.frames.length);
-    app.frameCount = n;
-    app.layers.forEach(L => {
-      if (L.type === 'pixels') L.frames = Array.from({ length: n }, blankImageData);
-    });
-    app.currentFrame = 0;
-    const avgDelay = gif.frames.reduce((s, f) => s + f.delay, 0) / gif.frames.length;
-    app.fps = Math.max(1, Math.min(60, Math.round(100 / avgDelay)));
-    $('fpsInput').value = app.fps;
-    rebuildTimeline();
-  }
-
-  updateBgAnimUI(gif.frames.length);
-  render();
-}
-
-function timelineIsEmpty() {
-  return app.layers.every(L => {
-    if (L.type === 'pixels') {
-      return L.frames.every(f => f.data.every((v, i) => i % 4 !== 3 || v === 0));
-    }
-    return L.type === 'background' || L.type === 'border';
+// ---------- Background upload (static image or animated GIF) ----------
+function handleBgUpload(file) {
+  loadVisualFile(file, asset => {
+    pushHistory();
+    app.bg.image = asset.image;
+    app.bg.frames = asset.frames;
+    if (app.bg.frames.length > 1) extendTimelineTo(app.bg.frames.length);
+    updateBgAnimUI(app.bg.frames.length);
+    updateFrameDeleteButton();
+    render();
   });
 }
 
@@ -1590,6 +1645,12 @@ function refreshEdgeTab() {
   $('perfSizeLabel').textContent = L.size;
   $('perfSpacing').value = L.spacing;
   $('perfSpacingLabel').textContent = L.spacing;
+  const uploadLabel = $('perfUploadBox').querySelector('div');
+  if (uploadLabel) {
+    uploadLabel.textContent = L.frames?.length > 1
+      ? `Animated GIF · ${L.frames.length} frames`
+      : 'Click to upload edge image or GIF';
+  }
 }
 
 // ===================== TIMELINE =====================
@@ -1608,6 +1669,7 @@ function rebuildTimeline() {
     div.appendChild(num);
     container.appendChild(div);
   }
+  updateFrameDeleteButton();
   refreshTimeline();
 }
 

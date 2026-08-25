@@ -76,10 +76,11 @@ a single undo step, and click-without-moving never creates phantom steps.
 
 - **3 layout presets** — Blinkie 150×20, Long 300×20, Stamp 100×100 —
   plus custom dimensions (20–800 × 10–600), with auto-fit zoom
-- **Animated GIF backgrounds** — upload a GIF and it's split into
-  frames; a pristine timeline auto-extends to match and adopts the
-  GIF's frame rate. Three mapping modes: sync to timeline, stretch,
-  boomerang (ping-pong)
+- **Animated GIFs everywhere** — backgrounds, ordinary image layers, and
+  uploaded edge fills are decoded into their real composited frames. The
+  timeline automatically extends to the longest imported GIF; shorter GIFs
+  loop across it, and existing draw animation repeats to fill the new length.
+  Backgrounds also support sync, stretch, and boomerang (ping-pong) mapping.
 - **Visible pixel grid** — every cell outlined on a crisp overlay that
   inverts against any background (never exported)
 - **Cell fill tool** — click a square, that square fills. Shift+click
